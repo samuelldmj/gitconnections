@@ -1,12 +1,8 @@
 <template>
-    <footer class="bg-gray-800 text-white p-4 text-center mt-auto">
+    <footer class="bg-emerald-700 text-white p-4 text-center">
         <p class="text-sm">
-            &copy; 2025 GitConnections |
-            <a href="/privacy" class="text-blue-400 hover:underline">Learn how we use your data</a>
+            © 2025 GitConnections |
+            <a href="/privacy" class="text-emerald-200 hover:underline">Privacy Policy</a>
         </p>
     </footer>
 </template>
-
-<script setup>
-// No reactive data needed for footer
-</script>

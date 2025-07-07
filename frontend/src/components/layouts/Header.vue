@@ -1,39 +1,26 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { inject, computed } from 'vue';
+import githubMark from '../../assets/github-mark.png';
+import githubMarkWhite from '../../assets/github-mark-white.png';
 
-const router = useRouter()
-const authStore = useAuthStore()
-
-const handleAuthAction = () => {
-    if (!authStore.isAuthenticated) router.push('/login')
-    else authStore.logout()
-}
-
-onMounted(() => {
-    // Ensure token is loaded from localStorage on mount
-    const storedToken = localStorage.getItem('token')
-    if (storedToken) {
-        authStore.token = storedToken
-        authStore.isAuthenticated = true
-    }
-})
+const { isDarkMode, toggle } = inject('darkMode');
+const logo = computed(() => isDarkMode.value ? githubMarkWhite : githubMark);
 </script>
 
 <template>
-    <header
-        class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex justify-between items-center shadow-lg">
-        <div class="flex items-center">
-            <img src="/github-logo.png" alt="GitConnections Logo" class="w-10 h-10 mr-2" />
-            <h1 class="text-2xl font-bold">GitConnections</h1>
-        </div>
-        <div>
-            <button @click="handleAuthAction"
-                class="bg-white text-blue-600 px-4 py-2 rounded-full font-semibold hover:bg-gray-100 transition duration-200">
-                {{ authStore.isAuthenticated ? 'Sign Out' : 'Sign in with GitHub' }}
+    <header class="bg-emerald-700 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <img :src="logo" alt="Logo" class="w-10 h-10" />
+                <h1 class="text-2xl font-bold">GitConnections</h1>
+            </div>
+            <button @click="toggle" class="flex items-center gap-2">
+                <span>{{ isDarkMode ? 'Dark' : 'Light' }}</span>
+                <div class="w-12 h-6 bg-gray-200 rounded-full p-1 transition-all duration-300 dark:bg-gray-600">
+                    <div class="w-4 h-4 bg-white rounded-full transition-all duration-300"
+                        :class="{ 'translate-x-6': isDarkMode }"></div>
+                </div>
             </button>
-            <a href="#" class="ml-4 text-sm underline hover:text-gray-200">Learn how we use your data</a>
         </div>
     </header>
 </template>
