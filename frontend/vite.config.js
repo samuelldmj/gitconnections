@@ -1,9 +1,15 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import path from 'path';
 
 export default defineConfig({
   plugins: [vue()],
-  base: process.env.NODE_ENV === 'production' ? '/github-non-follower/' : '/',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
+  base: process.env.NODE_ENV === 'production' ? '/gitconnections/' : '/',
   server: {
     proxy: {
       '/api': {
@@ -13,5 +19,4 @@ export default defineConfig({
       },
     },
   },
-})
-console.log('NODE_ENV:', process.env.NODE_ENV);
+});
