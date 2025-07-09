@@ -1,50 +1,81 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth';
-import { useThemeStore } from '@/stores/theme';
-import githubMark from '../assets/github-mark.png';
-import githubMarkWhite from '../assets/github-mark-white.png';
+/*
+  Vue 3 <script setup> syntax for cleaner composition API usage.
+  This script handles GitHub OAuth login and theme-based logo switching.
+*/
 
+import { ref, onMounted, computed } from 'vue';          // Vue composition API helpers
+import { useRouter } from 'vue-router';                  // Vue Router for navigation
+import { useAuthStore } from '../stores/auth';           // Pinia auth store for user state management
+import { useThemeStore } from '@/stores/theme';          // Pinia theme store for dark/light mode state
+import githubMark from '../assets/github-mark.png';      // GitHub logo (light mode)
+import githubMarkWhite from '../assets/github-mark-white.png'; // GitHub logo (dark mode)
+
+// Create Vue Router instance to programmatically navigate pages
 const router = useRouter();
+
+// Create instances of Pinia stores to access shared state and actions
 const authStore = useAuthStore();
 const themeStore = useThemeStore();
+
+// Reactive variable to hold potential error messages during login process
 const error = ref('');
 
-// Using Pinia store instead of inject
+// Computed property that dynamically chooses the GitHub logo image
+// based on the current theme (dark mode or light mode).
+// When themeStore.isDarkMode is true, show the white logo, else show default.
 const githubLogo = computed(() =>
     themeStore.isDarkMode ? githubMarkWhite : githubMark
 );
 
+// Function to initiate GitHub OAuth login flow by redirecting
+// the browser to GitHub's OAuth authorization endpoint.
+// Uses environment variables for:
+// - OAuth URL
+// - Client ID
+// - Redirect URI (where GitHub sends user after login)
+// Requests "user:follow" scope and expects a code response type.
 const handleGitHubLogin = () => {
     window.location.href = `${import.meta.env.VITE_GITHUB_OAUTH_URL}?client_id=${import.meta.env.VITE_GITHUB_CLIENT_ID
         }&redirect_uri=${import.meta.env.VITE_REDIRECT_URI
         }&scope=user:follow&response_type=code`;
 };
 
+// Lifecycle hook that runs once the component is mounted to the DOM.
+// Checks if the URL contains a "code" query parameter (GitHub OAuth code).
+// If yes, it exchanges this code with your backend API for an access token.
+// Then:
+// - If successful, calls authStore.loginWithGitHub() to update auth state
+// - Redirects user to the /dashboard route
+// - If error occurs, sets the error message to be shown to the user
 onMounted(() => {
+    // Parse query params from current URL
     const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
+    const code = urlParams.get('code');  // Get the OAuth "code" if present
 
     if (code) {
+        // Make POST request to your backend API to exchange code for token
         fetch(`${import.meta.env.VITE_API_URL}/auth/github`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
+            body: JSON.stringify({ code }),  // Send the received code in request body
         })
-            .then(response => response.json())
+            .then(response => response.json())  // Parse JSON response
             .then(data => {
+                // If backend returned a token, update auth state and navigate
                 if (data.token) {
-                    authStore.loginWithGitHub();
-                    router.push('/dashboard');
+                    authStore.loginWithGitHub();  // Update Pinia auth store (e.g., set user info, token)
+                    router.push('/dashboard');    // Navigate to dashboard page after login
                 }
             })
             .catch(err => {
+                // Handle network or parsing errors
                 error.value = 'Login failed. Please try again.';
             });
     }
 });
 </script>
+
 
 <template>
     <div class="min-h-screen flex items-center justify-center p-4">

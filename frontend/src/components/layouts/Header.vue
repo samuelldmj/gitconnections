@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'; // Add this import
+import { computed } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import githubMark from '../../assets/github-mark.png';
 import githubMarkWhite from '../../assets/github-mark-white.png';
@@ -22,7 +22,8 @@ const logo = computed(() =>
                     <span>{{ themeStore.isDarkMode ? 'Dark' : 'Light' }}</span>
                     <div class="w-12 h-6 bg-gray-200 rounded-full p-1 transition-all duration-300 dark:bg-gray-600">
                         <div class="w-4 h-4 bg-white rounded-full transition-all duration-300"
-                            :class="{ 'translate-x-6': themeStore.isDarkMode }"></div>
+                            :class="{ 'translate-x-6': themeStore.isDarkMode }">
+                        </div>
                     </div>
                 </button>
             </div>
