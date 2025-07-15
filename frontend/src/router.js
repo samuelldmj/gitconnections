@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from './stores/auth'
 
 const Login = () => import('./views/Login.vue')
 const Dashboard = () => import('./views/Dashboard.vue')
@@ -11,15 +12,20 @@ const routes = [
     { path: '/', redirect: '/login' },
 ]
 
-const router = createRouter({
-    history: createWebHistory(),
-    routes,
-})
+export function createMyRouter() {
+    const router = createRouter({
+        history: createWebHistory(),
+        routes,
+    })
 
-router.beforeEach((to, from, next) => {
-    const isAuthenticated = !!localStorage.getItem('githubToken')
-    if (to.meta.requiresAuth && !isAuthenticated) next('/login')
-    else next()
-})
+    router.beforeEach((to, from, next) => {
+        const authStore = useAuthStore();
+        if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+            next('/login');
+        } else {
+            next();
+        }
+    });
 
-export default router
+    return router
+}
