@@ -28,6 +28,10 @@ export const useAuthStore = defineStore('auth', {
                     body: JSON.stringify({ code }),
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const data = await response.json();
 
                 // Save token and update auth state
@@ -50,25 +54,50 @@ export const useAuthStore = defineStore('auth', {
          * Requires the user to be logged in (i.e. token must be set)
          */
         async getUserProfile() {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/user`, {
                 headers: {
-                    Authorization: `Bearer ${this.token}` // Include token in Authorization header
+                    Authorization: `Bearer ${this.token}`
                 },
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             this.user = await response.json();
             return this.user;
+        },
+
+
+        async getUserStars() {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/user-stars`, {
+                headers: { Authorization: `Bearer ${this.token}` }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        },
+
+        async getFollowers() {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/followers`, {
+                headers: { Authorization: `Bearer ${this.token}` }
+            })
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+            return response.json()
         },
 
         /**
          *  Get a list of users the authenticated user follows who don't follow back
          */
         async getNonFollowers() {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/non-followers`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/non-followers`, {
                 headers: {
                     Authorization: `Bearer ${this.token}`
                 },
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
             return response.json(); // Returns list of non-followers
         },
@@ -79,7 +108,7 @@ export const useAuthStore = defineStore('auth', {
          */
         async unfollow(username) {
             const response = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/following/${username}`,
+                `${import.meta.env.VITE_API_URL}/api/auth/following/${username}`,
                 {
                     method: 'DELETE',
                     headers: {
@@ -87,6 +116,10 @@ export const useAuthStore = defineStore('auth', {
                     },
                 }
             );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
             return response.json(); // Returns success/failure result
         },
@@ -103,7 +136,7 @@ export const useAuthStore = defineStore('auth', {
             const total = usernames.length;
 
             const response = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/unfollow-batch`,
+                `${import.meta.env.VITE_API_URL}/api/auth/unfollow-batch`,
                 {
                     method: 'POST',
                     headers: {
@@ -113,6 +146,10 @@ export const useAuthStore = defineStore('auth', {
                     body: JSON.stringify({ usernames }),
                 }
             );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
             const { results } = await response.json();
 
