@@ -86,11 +86,33 @@
                 </div>
             </div>
         </div>
+
+        <div class="text-center mt-8">
+            <button @click="goBack"
+                class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md transition-colors">
+                ← Back to Login
+            </button>
+        </div>
     </div>
+
+
+
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
+
+const goBack = () => {
+    // Check if we can go back in history
+    if (window.history.state.back) {
+        router.go(-1)
+    } else {
+        // Fallback to home if no history
+        router.push('/')
+    }
+}
 </script>
 
 <style scoped>
