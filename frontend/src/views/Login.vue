@@ -30,7 +30,7 @@ const githubLogo = computed(() =>
 
 // Function to initiate GitHub OAuth login flow by redirecting
 // the browser to GitHub's OAuth authorization endpoint.
-// Uses environment variables for:
+// Use environment variables for:
 // - OAuth URL
 // - Client ID
 // - Redirect URI (where GitHub sends user after login)
@@ -48,30 +48,42 @@ const handleGitHubLogin = () => {
 // - If successful, calls authStore.loginWithGitHub() to update auth state
 // - Redirects user to the /dashboard route
 // - If error occurs, sets the error message to be shown to the user
-onMounted(() => {
-    // Parse query params from current URL
+onMounted(async () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');  // Get the OAuth "code" if present
+    const code = urlParams.get('code');
+    console.log('Received code:', code);
 
     if (code) {
-        // Make POST request to your backend API to exchange code for token
-        fetch(`${import.meta.env.VITE_API_URL}/auth/github`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),  // Send the received code in request body
-        })
-            .then(response => response.json())  // Parse JSON response
-            .then(data => {
-                // If backend returned a token, update auth state and navigate
-                if (data.token) {
-                    authStore.loginWithGitHub();  // Update Pinia auth store (e.g., set user info, token)
-                    router.push('/dashboard');    // Navigate to dashboard page after login
-                }
-            })
-            .catch(err => {
-                // Handle network or parsing errors
-                error.value = 'Login failed. Please try again.';
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/github`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code }),
             });
+
+            if (!response.ok) throw new Error('Login failed');
+
+            const data = await response.json();
+
+            if (data.token) {
+                // Update store
+                authStore.token = data.token;
+                authStore.isAuthenticated = true;
+                localStorage.setItem('token', data.token);
+
+                // Fetch user profile before redirect
+                await authStore.getUserProfile();
+
+                // Clear the code from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+
+                // Redirect
+                router.push('/dashboard');
+            }
+        } catch (err) {
+            error.value = 'Login failed. Please try again.';
+            console.error('Login error:', err);
+        }
     }
 });
 </script>
@@ -85,7 +97,7 @@ onMounted(() => {
                 <img :src="githubLogo" alt="GitHub Logo" class="w-20 h-20 mx-auto mb-4" />
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">Sign in with GitHub</h2>
                 <p class="text-gray-600 dark:text-gray-400 mb-6">
-                    🔒 We only request:<br>
+                    <strong>We only request:</strong><br>
                     - Read your followers list<br>
                     - Unfollow on your behalf (optional)
                 </p>
