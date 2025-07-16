@@ -58,6 +58,19 @@ router.get('/user', async (req, res) => {
     }
 });
 
+
+router.get('/followers', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1] || req.session.githubToken
+        const { data } = await axios.get('https://api.github.com/user/followers', {
+            headers: { Authorization: `token ${token}` }
+        })
+        res.json(data)
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
 router.get('/non-followers', async (req, res) => {
     try {
         const token = req.headers.authorization?.split(' ')[1] || req.session.githubToken;
@@ -119,6 +132,35 @@ router.post('/unfollow-batch', async (req, res) => {
         }
 
         res.json({ results });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+router.get('/user-stars', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1] || req.session.githubToken;
+        let stars = 0;
+        let page = 1;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data } = await axios.get(`https://api.github.com/user/repos?per_page=100&page=${page}`, {
+                headers: { Authorization: `token ${token}` }
+            });
+
+            if (data.length === 0) {
+                hasMore = false;
+            } else {
+                stars += data.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+                page++;
+                // Respect GitHub rate limits
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        res.json({ totalStars: stars });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
