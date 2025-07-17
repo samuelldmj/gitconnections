@@ -6,14 +6,13 @@ const router = express.Router();
 router.post('/github', async (req, res) => {
     try {
         const { code } = req.body;
-        console.log('Backend received code:', code);
+        if (!code) return res.status(400).json({ error: "No code provided" });
 
-        // verifying if the code exists
-        if (!code) {
-            return res.status(400).json({ error: "No code provided" });
+        // Adding delay to simulate processing (will remove in production)
+        if (process.env.NODE_ENV === 'development') {
+            await new Promise(resolve => setTimeout(resolve, 1500));
         }
 
-        // Exchanging code for token quickly
         const { data } = await axios.post(
             'https://github.com/login/oauth/access_token',
             {
@@ -27,21 +26,22 @@ router.post('/github', async (req, res) => {
             }
         );
 
-        console.log('GitHub response:', data);
-
-        // GitHub's error responses
         if (data.error) {
-            console.error('GitHub error:', data);
             return res.status(400).json({
                 error: data.error_description || 'GitHub authentication failed'
             });
         }
 
-        // Success
-        res.json({ token: data.access_token });
+        res.json({
+            token: data.access_token,
+            expires_in: data.expires_in || 3600
+        });
     } catch (error) {
         console.error('Auth error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: error.message,
+            retryable: true // Indicating if client can retry
+        });
     }
 });
 
