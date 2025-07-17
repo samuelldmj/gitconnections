@@ -14,7 +14,9 @@ const routes = [
 
 export function createMyRouter() {
     const router = createRouter({
-        history: createWebHistory(),
+        history: createWebHistory(process.env.NODE_ENV === 'production'
+            ? '/gitconnections/'
+            : '/'),
         routes,
     })
 
