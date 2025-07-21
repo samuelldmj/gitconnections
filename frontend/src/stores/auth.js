@@ -8,7 +8,16 @@ export const useAuthStore = defineStore('auth', {
         token: null,            // JWT or session token received from backend
         user: null,             // Object holding user profile info
         unfollowProgress: 0,    // Progress indicator (0–100%) for batch unfollow operation
-        unfollowErrors: []      // Array to store failed unfollow attempts with error details
+        unfollowErrors: [],     // Array to store failed unfollow attempts with error details
+        pagination: {
+            followers: { page: 1, perPage: 30, hasMore: true },
+            nonFollowers: { page: 1, perPage: 30, hasMore: true }
+        },
+        cache: {
+            followers: [],
+            nonFollowers: []
+        }
+
     }),
 
     //   Actions: methods to modify state or perform async logic (e.g. API calls)
@@ -77,29 +86,50 @@ export const useAuthStore = defineStore('auth', {
             return response.json();
         },
 
-        async getFollowers() {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/followers`, {
-                headers: { Authorization: `Bearer ${this.token}` }
-            })
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-            return response.json()
+        async getFollowers(page = 1, perPage = 30) {
+            try {
+                const response = await fetch(
+                    `${import.meta.env.VITE_API_URL}/api/auth/followers?page=${page}&per_page=${perPage}`,
+                    { headers: { Authorization: `Bearer ${this.token}` } }
+                );
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`);
+                }
+
+                const data = await response.json();
+                console.log('Followers data:', data); // Debug log
+                this.pagination.followers.page = page;
+                this.pagination.followers.hasMore = data.length === perPage;
+                this.cache.followers = data; // Update cache
+                return data;
+            } catch (error) {
+                console.error('Error fetching followers:', error);
+                throw error;
+            }
         },
 
         /**
          *  Get a list of users the authenticated user follows who don't follow back
          */
-        async getNonFollowers() {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/non-followers`, {
-                headers: {
-                    Authorization: `Bearer ${this.token}`
-                },
-            });
+        async getNonFollowers(page = 1, perPage = 30) {
+            try {
+                const response = await fetch(
+                    `${import.meta.env.VITE_API_URL}/api/auth/non-followers?page=${page}&per_page=${perPage}`,
+                    { headers: { Authorization: `Bearer ${this.token}` } }
+                );
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                this.pagination.nonFollowers.page = page;
+                this.pagination.nonFollowers.hasMore = data.length === perPage;
+                return data;
+            } catch (error) {
+                console.error('Error fetching non-followers:', error);
+                throw error;
             }
-
-            return response.json(); // Returns list of non-followers
         },
 
         /**
