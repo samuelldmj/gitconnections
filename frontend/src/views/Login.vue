@@ -4,7 +4,7 @@
   This script handles GitHub OAuth login and theme-based logo switching.
 */
 
-import { ref, onMounted, computed } from 'vue';          // Vue composition API helpers
+import { ref, onMounted, computed, inject } from 'vue';          // Vue composition API helpers
 import { useRouter } from 'vue-router';                  // Vue Router for navigation
 import { useAuthStore } from '../stores/auth';           // Pinia auth store for user state management
 import { useThemeStore } from '@/stores/theme';          // Pinia theme store for dark/light mode state
@@ -21,6 +21,8 @@ const themeStore = useThemeStore();
 // Reactive variable to hold potential error messages during login process
 const error = ref('');
 
+const { state: globalLoading, message: loadingMessage, progress: loadingProgress } = inject('globalLoading');
+
 // Computed property that dynamically chooses the GitHub logo image
 // based on the current theme (dark mode or light mode).
 // When themeStore.isDarkMode is true, show the white logo, else show default.
@@ -36,6 +38,10 @@ const githubLogo = computed(() =>
 // - Redirect URI (where GitHub sends user after login)
 // Requests "user:follow" scope and expects a code response type.
 const handleGitHubLogin = () => {
+    globalLoading.value = true;
+    loadingMessage.value = 'Redirecting to GitHub...';
+    loadingProgress.value = 30;
+
     window.location.href = `${import.meta.env.VITE_GITHUB_OAUTH_URL}?client_id=${import.meta.env.VITE_GITHUB_CLIENT_ID
         }&redirect_uri=${import.meta.env.VITE_REDIRECT_URI
         }&scope=user:follow&response_type=code`;
@@ -51,10 +57,13 @@ const handleGitHubLogin = () => {
 onMounted(async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
-    console.log('Received code:', code);
 
     if (code) {
         try {
+            globalLoading.value = true;
+            loadingMessage.value = 'Authenticating with GitHub...';
+            loadingProgress.value = 40;
+
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/github`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -63,26 +72,33 @@ onMounted(async () => {
 
             if (!response.ok) throw new Error('Login failed');
 
+            loadingProgress.value = 60;
             const data = await response.json();
 
             if (data.token) {
-                // Update store
+                loadingMessage.value = 'Setting up your session...';
+                loadingProgress.value = 80;
+
                 authStore.token = data.token;
                 authStore.isAuthenticated = true;
                 localStorage.setItem('token', data.token);
 
-                // Fetch user profile before redirect
+                loadingMessage.value = 'Loading your profile...';
                 await authStore.getUserProfile();
 
-                // Clear the code from URL
+                loadingProgress.value = 100;
                 window.history.replaceState({}, document.title, window.location.pathname);
 
-                // Redirect
+                // Small delay to show completion
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 router.push('/dashboard');
             }
         } catch (err) {
             error.value = 'Login failed. Please try again.';
             console.error('Login error:', err);
+        } finally {
+            globalLoading.value = false;
+            loadingProgress.value = 0;
         }
     }
 });
