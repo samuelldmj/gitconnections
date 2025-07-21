@@ -1,17 +1,28 @@
 import express from 'express';
 import axios from 'axios';
 const router = express.Router();
+import NodeCache from 'node-cache';
+
+
+const cache = new NodeCache({ stdTTL: 3600 }); // Cache for 1 hour
+
+// Helper function for GitHub API calls with caching
+async function fetchWithCache(cacheKey, fetchFn) {
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+        return cachedData;
+    }
+
+    const freshData = await fetchFn();
+    cache.set(cacheKey, freshData);
+    return freshData;
+}
 
 // GitHub OAuth endpoints
 router.post('/github', async (req, res) => {
     try {
         const { code } = req.body;
         if (!code) return res.status(400).json({ error: "No code provided" });
-
-        // Adding delay to simulate processing (will remove in production)
-        if (process.env.NODE_ENV === 'development') {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-        }
 
         const { data } = await axios.post(
             'https://github.com/login/oauth/access_token',
@@ -22,7 +33,7 @@ router.post('/github', async (req, res) => {
             },
             {
                 headers: { Accept: 'application/json' },
-                timeout: 5000 // timeout to prevent hanging
+                timeout: 5000
             }
         );
 
@@ -40,7 +51,7 @@ router.post('/github', async (req, res) => {
         console.error('Auth error:', error);
         res.status(500).json({
             error: error.message,
-            retryable: true // Indicating if client can retry
+            retryable: true
         });
     }
 });
@@ -48,10 +59,16 @@ router.post('/github', async (req, res) => {
 // GitHub API proxy endpoints
 router.get('/user', async (req, res) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1] || req.session.githubToken;
-        const { data } = await axios.get('https://api.github.com/user', {
-            headers: { Authorization: `token ${token}` }
+        const token = req.headers.authorization?.split(' ')[1];
+        const cacheKey = `user_${token}`;
+
+        const data = await fetchWithCache(cacheKey, async () => {
+            const { data } = await axios.get('https://api.github.com/user', {
+                headers: { Authorization: `token ${token}` }
+            });
+            return data;
         });
+
         res.json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -61,37 +78,63 @@ router.get('/user', async (req, res) => {
 
 router.get('/followers', async (req, res) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1] || req.session.githubToken
-        const { data } = await axios.get('https://api.github.com/user/followers', {
-            headers: { Authorization: `token ${token}` }
-        })
-        res.json(data)
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const per_page = parseInt(req.query.per_page) || 30;
+        const cacheKey = `followers_${token}_${page}_${per_page}`;
+
+        // Temporarily disable cache for debugging
+        // const data = cache.get(cacheKey);
+        // if (data) return res.json(data);
+
+        const data = await fetchWithCache(cacheKey, async () => {
+            const response = await axios.get('https://api.github.com/user/followers', {
+                headers: { Authorization: `token ${token}` },
+                params: { page, per_page }
+            });
+            console.log('GitHub followers response:', response.data);
+            return response.data;
+        });
+
+        res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message })
+        console.error('Error fetching followers:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json({
+            error: error.message,
+            details: error.response?.data
+        });
     }
-})
+});
 
 router.get('/non-followers', async (req, res) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1] || req.session.githubToken;
+        const token = req.headers.authorization?.split(' ')[1];
+        const page = parseInt(req.query.page) || 1;
+        const per_page = parseInt(req.query.per_page) || 30;
+        const cacheKey = `non_followers_${token}_${page}_${per_page}`;
 
-        // Get followers and following
-        const [followers, following] = await Promise.all([
-            axios.get('https://api.github.com/user/followers', {
-                headers: { Authorization: `token ${token}` }
-            }),
-            axios.get('https://api.github.com/user/following', {
-                headers: { Authorization: `token ${token}` }
-            })
-        ]);
+        const data = await fetchWithCache(cacheKey, async () => {
+            // Get paginated followers and following
+            const [followersRes, followingRes] = await Promise.all([
+                axios.get('https://api.github.com/user/followers', {
+                    headers: { Authorization: `token ${token}` },
+                    params: { page, per_page }
+                }),
+                axios.get('https://api.github.com/user/following', {
+                    headers: { Authorization: `token ${token}` },
+                    params: { page, per_page }
+                })
+            ]);
 
-        // Find non-followers
-        const followerLogins = new Set(followers.data.map(user => user.login));
-        const nonFollowers = following.data.filter(
-            user => !followerLogins.has(user.login)
-        );
+            const followerLogins = new Set(followersRes.data.map(user => user.login));
+            return followingRes.data.filter(user => !followerLogins.has(user.login));
+        });
 
-        res.json(nonFollowers);
+        res.json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
