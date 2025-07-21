@@ -18,5 +18,20 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
+    preview: {
+      port: 4173,
+      strictPort: true,
+      headers: {
+        "Cache-Control": "no-store"
+      }
+    }
   },
+  build: {
+    assetsDir: './',
+    rollupOptions: {
+      output: {
+        assetFileNames: '[name].[ext]'
+      }
+    }
+  }
 });
