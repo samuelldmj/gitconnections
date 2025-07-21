@@ -20,8 +20,23 @@ export function createMyRouter() {
         routes,
     })
 
+    // router.js
     router.beforeEach((to, from, next) => {
         const authStore = useAuthStore();
+
+        // Check for token in localStorage
+        const token = localStorage.getItem('token');
+        if (token && !authStore.isAuthenticated) {
+            authStore.token = token;
+            authStore.isAuthenticated = true;
+
+            // Try to get user profile to verify token
+            authStore.getUserProfile().catch(() => {
+                authStore.logout();
+                next('/login');
+            });
+        }
+
         if (to.meta.requiresAuth && !authStore.isAuthenticated) {
             next('/login');
         } else {
