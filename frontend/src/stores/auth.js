@@ -99,10 +99,10 @@ export const useAuthStore = defineStore('auth', {
                 }
 
                 const data = await response.json();
-                console.log('Followers data:', data); // Debug log
+                console.log('Followers data:', data.map(user => user.login));
                 this.pagination.followers.page = page;
                 this.pagination.followers.hasMore = data.length === perPage;
-                this.cache.followers = data; // Update cache
+                this.cache.followers = data;
                 return data;
             } catch (error) {
                 console.error('Error fetching followers:', error);
@@ -119,13 +119,16 @@ export const useAuthStore = defineStore('auth', {
                     `${import.meta.env.VITE_API_URL}/api/auth/non-followers?page=${page}&per_page=${perPage}`,
                     { headers: { Authorization: `Bearer ${this.token}` } }
                 );
-
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`);
+                }
                 const data = await response.json();
+                console.log('Non-followers data:', data.map(user => user.login));
                 this.pagination.nonFollowers.page = page;
                 this.pagination.nonFollowers.hasMore = data.length === perPage;
-                return data;
+                this.cache.nonFollowers = data;
+                return data.slice((page - 1) * perPage, page * perPage); // Paginate locally
             } catch (error) {
                 console.error('Error fetching non-followers:', error);
                 throw error;
