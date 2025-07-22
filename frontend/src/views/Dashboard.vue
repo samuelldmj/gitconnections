@@ -26,7 +26,8 @@ const selectedUsers = ref(new Set());
 const loadTimeout = ref(false);
 const LOAD_TIMEOUT_MS = 10000;
 const totalStars = ref(0);
-const isSidebarOpen = ref(false); // For mobile sidebar toggle
+const isSidebarOpen = ref(false);
+const rateLimit = ref(null); // New state for rate limit
 
 // Pagination state
 const currentPage = ref(1);
@@ -37,34 +38,29 @@ const isLoadingMore = ref(false);
 const currentUsers = computed(() => {
     const users = activeTab.value === 'nonFollowers' ? nonFollowers.value :
         activeTab.value === 'followers' ? followers.value : whitelist.value;
-    console.log(`Current users for tab ${activeTab.value}:`, users);
+
     return users;
 });
 
-// Virtual scroll setup (kept for future debugging)
-// const containerRef = ref(null);
-// const { list: virtualList, containerProps, wrapperProps } = useVirtualList(currentUsers, {
-//     itemHeight: 72,
-//     overscan: 10,
-// });
-// watchEffect(() => {
-//     console.log('currentUsers:', currentUsers.value);
-//     console.log('virtualList:', virtualList.value);
-//     console.log('containerRef:', containerRef.value?.getBoundingClientRect());
-//     if (virtualList.value.length > 0) {
-//         console.log('virtualList first item:', virtualList.value[0]);
-//     }
-// });
+// Virtual scroll setup
+const containerRef = ref(null);
+const { list: virtualList, containerProps, wrapperProps } = useVirtualList(currentUsers, {
+    itemHeight: 72, // Height of each row (adjust based on your design)
+    overscan: 10,   // Load 10 extra items for smooth scrolling
+});
+watchEffect(() => {
+
+    if (virtualList.value.length > 0) {
+
+    }
+});
 
 const bodyClasses = computed(() =>
     themeStore.isDarkMode ? 'dark bg-gray-900' : 'bg-gray-100'
 );
 
 // Whitelist management
-const isWhitelisted = (username) => {
-    return whitelist.value.some(user => user.login === username);
-};
-
+const isWhitelisted = (username) => whitelist.value.some(user => user.login === username);
 const addToWhitelist = (username) => {
     if (!isWhitelisted(username)) {
         const userToAdd = nonFollowers.value.find(u => u.login === username) ||
@@ -72,23 +68,20 @@ const addToWhitelist = (username) => {
             { login: username, avatar_url: `https://github.com/${username}.png` };
         whitelist.value.push(userToAdd);
         localStorage.setItem('whitelist', JSON.stringify(whitelist.value));
+        triggerRef(whitelist);
     }
 };
-
 const removeFromWhitelist = (username) => {
     whitelist.value = whitelist.value.filter(user => user.login !== username);
     localStorage.setItem('whitelist', JSON.stringify(whitelist.value));
+    triggerRef(whitelist);
 };
 
 // Selection handling
 const toggleUserSelection = (username) => {
-    if (selectedUsers.value.has(username)) {
-        selectedUsers.value.delete(username);
-    } else {
-        selectedUsers.value.add(username);
-    }
+    if (selectedUsers.value.has(username)) selectedUsers.value.delete(username);
+    else selectedUsers.value.add(username);
 };
-
 const selectAllUsers = () => {
     const users = activeTab.value === 'nonFollowers' ? nonFollowers.value :
         activeTab.value === 'followers' ? followers.value : [];
@@ -110,12 +103,14 @@ const loadPage = debounce(async (page) => {
                 id: user.id,
             }));
             triggerRef(followers);
-            console.log('Normalized followers:', followers.value);
+
         } else if (activeTab.value === 'nonFollowers') {
             nonFollowers.value = await authStore.getNonFollowers(page, itemsPerPage);
             triggerRef(nonFollowers);
-            console.log('Fetched non-followers:', nonFollowers.value);
+
         }
+        // Fetch rate limit
+        rateLimit.value = await authStore.getRateLimit();
     } catch (err) {
         error.value = err.message;
         console.error('Load page error:', err);
@@ -194,15 +189,11 @@ const handleUnfollowAll = async () => {
     showConfirm.value = false;
     loading.value = true;
     try {
-        const toUnfollow = [...selectedUsers.value].filter(
-            username => !isWhitelisted(username)
-        );
+        const toUnfollow = [...selectedUsers.value].filter(username => !isWhitelisted(username));
 
         await authStore.unfollowAll(toUnfollow);
-        nonFollowers.value = nonFollowers.value.filter(
-            user => !selectedUsers.value.has(user.login));
-        followers.value = followers.value.filter(
-            user => !selectedUsers.value.has(user.login));
+        nonFollowers.value = nonFollowers.value.filter(user => !selectedUsers.value.has(user.login));
+        followers.value = followers.value.filter(user => !selectedUsers.value.has(user.login));
         triggerRef(followers);
         triggerRef(nonFollowers);
         selectedUsers.value.clear();
@@ -331,6 +322,13 @@ const toggleSidebar = () => {
                     Dashboard
                 </h2>
 
+                <!-- Rate Limit Display -->
+                <!-- <div v-if="rateLimit" class="text-sm mb-4"
+                    :class="{ 'text-gray-600': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
+                    API Rate Limit: {{ rateLimit.remaining }} / {{ rateLimit.limit }} (Resets at {{ new
+                        Date(rateLimit.reset * 1000).toLocaleString() }})
+                </div> -->
+
                 <!-- Tab Navigation -->
                 <div class="flex border-b mb-4 overflow-x-auto"
                     :class="{ 'border-gray-200': !themeStore.isDarkMode, 'border-gray-700': themeStore.isDarkMode }">
@@ -346,88 +344,93 @@ const toggleSidebar = () => {
                     </button>
                 </div>
 
-                <!-- Table Container -->
-                <div class="overflow-x-auto" style="max-height: 60vh;">
-                    <table class="min-w-full divide-y"
-                        :class="{ 'divide-gray-200': !themeStore.isDarkMode, 'divide-gray-700': themeStore.isDarkMode }">
-                        <thead :class="{ 'bg-gray-50': !themeStore.isDarkMode, 'bg-gray-800': themeStore.isDarkMode }">
-                            <tr>
-                                <th v-if="activeTab !== 'whitelist'"
-                                    class="px-2 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                                    :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
-                                    <input type="checkbox" class="h-4 w-4 rounded"
-                                        :checked="selectedUsers.size === currentUsers.length && currentUsers.length > 0"
-                                        @change="selectedUsers.size === currentUsers.length ? selectedUsers.clear() : selectAllUsers()"
-                                        :class="{ 'border-gray-300 text-blue-600': !themeStore.isDarkMode, 'border-gray-600 text-blue-500': themeStore.isDarkMode }" />
-                                </th>
-                                <th class="px-2 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                                    :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
-                                    {{ activeTab === 'whitelist' ? 'Whitelisted Users' : 'Username' }}
-                                </th>
-                                <th class="px-2 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                                    :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="currentUsers.length === 0 && !error" class="text-center py-4">
-                                <td colspan="3"
-                                    :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
-                                    <span v-if="activeTab === 'nonFollowers'">No non-followers found!</span>
-                                    <span v-else-if="activeTab === 'followers'">No followers found!</span>
-                                    <span v-else>Your whitelist is empty!</span>
-                                </td>
-                            </tr>
-                            <tr v-for="user in currentUsers" :key="user.login" :class="{
-                                'divide-gray-200': !themeStore.isDarkMode,
-                                'divide-gray-700': themeStore.isDarkMode,
-                                'bg-white': !themeStore.isDarkMode,
-                                'bg-gray-800': themeStore.isDarkMode
-                            }">
-                                <td v-if="activeTab !== 'whitelist'"
-                                    class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                                    <input type="checkbox" class="h-4 w-4 rounded"
-                                        :checked="selectedUsers.has(user.login)"
-                                        @change="toggleUserSelection(user.login)" :disabled="isWhitelisted(user.login)"
-                                        :class="{ 'border-gray-300 text-blue-600': !themeStore.isDarkMode, 'border-gray-600 text-blue-500': themeStore.isDarkMode }" />
-                                </td>
-                                <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <img class="h-8 w-8 sm:h-10 sm:w-10 rounded-full" :src="user.avatar_url"
-                                            :alt="user.login" />
-                                        <div class="ml-2 sm:ml-4">
-                                            <div class="text-sm font-medium"
-                                                :class="{ 'text-gray-900': !themeStore.isDarkMode, 'text-white': themeStore.isDarkMode }">
-                                                {{ user.login }}
-                                                <span v-if="isWhitelisted(user.login)"
-                                                    class="ml-2 text-xs px-2 py-1 rounded-full"
-                                                    :class="{ 'bg-green-100 text-green-800': !themeStore.isDarkMode, 'bg-green-800 text-green-100': themeStore.isDarkMode }">
-                                                    Whitelisted
-                                                </span>
+                <!-- Virtual Scrolled Table Container -->
+                <div ref="containerRef" v-bind="containerProps" class="overflow-auto" style="max-height: 60vh;">
+                    <div v-bind="wrapperProps">
+                        <table class="min-w-full divide-y"
+                            :class="{ 'divide-gray-200': !themeStore.isDarkMode, 'divide-gray-700': themeStore.isDarkMode }">
+                            <thead
+                                :class="{ 'bg-gray-50': !themeStore.isDarkMode, 'bg-gray-800': themeStore.isDarkMode }">
+                                <tr>
+                                    <th v-if="activeTab !== 'whitelist'"
+                                        class="px-2 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                                        :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
+                                        <input type="checkbox" class="h-4 w-4 rounded"
+                                            :checked="selectedUsers.size === currentUsers.length && currentUsers.length > 0"
+                                            @change="selectedUsers.size === currentUsers.length ? selectedUsers.clear() : selectAllUsers()"
+                                            :class="{ 'border-gray-300 text-blue-600': !themeStore.isDarkMode, 'border-gray-600 text-blue-500': themeStore.isDarkMode }" />
+                                    </th>
+                                    <th class="px-2 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                                        :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
+                                        {{ activeTab === 'whitelist' ? 'Whitelisted Users' : 'Username' }}
+                                    </th>
+                                    <th class="px-2 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                                        :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="virtualList.length === 0 && !error" class="text-center py-4">
+                                    <td colspan="3"
+                                        :class="{ 'text-gray-500': !themeStore.isDarkMode, 'text-gray-300': themeStore.isDarkMode }">
+                                        <span v-if="activeTab === 'nonFollowers'">No non-followers found!</span>
+                                        <span v-else-if="activeTab === 'followers'">No followers found!</span>
+                                        <span v-else>Your whitelist is empty!</span>
+                                    </td>
+                                </tr>
+                                <tr v-for="item in virtualList" :key="item.data.login" :class="{
+                                    'divide-gray-200': !themeStore.isDarkMode,
+                                    'divide-gray-700': themeStore.isDarkMode,
+                                    'bg-white': !themeStore.isDarkMode,
+                                    'bg-gray-800': themeStore.isDarkMode
+                                }">
+                                    <td v-if="activeTab !== 'whitelist'"
+                                        class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <input type="checkbox" class="h-4 w-4 rounded"
+                                            :checked="selectedUsers.has(item.data.login)"
+                                            @change="toggleUserSelection(item.data.login)"
+                                            :disabled="isWhitelisted(item.data.login)"
+                                            :class="{ 'border-gray-300 text-blue-600': !themeStore.isDarkMode, 'border-gray-600 text-blue-500': themeStore.isDarkMode }" />
+                                    </td>
+                                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <img class="h-8 w-8 sm:h-10 sm:w-10 rounded-full"
+                                                :src="item.data.avatar_url" :alt="item.data.login" />
+                                            <div class="ml-2 sm:ml-4">
+                                                <div class="text-sm font-medium"
+                                                    :class="{ 'text-gray-900': !themeStore.isDarkMode, 'text-white': themeStore.isDarkMode }">
+                                                    {{ item.data.login }}
+                                                    <span v-if="isWhitelisted(item.data.login)"
+                                                        class="ml-2 text-xs px-2 py-1 rounded-full"
+                                                        :class="{ 'bg-green-100 text-green-800': !themeStore.isDarkMode, 'bg-green-800 text-green-100': themeStore.isDarkMode }">
+                                                        Whitelisted
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap space-x-1 sm:space-x-2">
-                                    <button v-if="activeTab !== 'whitelist' && !isWhitelisted(user.login)"
-                                        @click="handleUnfollow(user.login)"
-                                        class="text-red-600 hover:text-red-900 text-sm">
-                                        Unfollow
-                                    </button>
-                                    <button v-if="activeTab !== 'whitelist' && !isWhitelisted(user.login)"
-                                        @click="addToWhitelist(user.login)"
-                                        class="text-green-600 hover:text-green-900 text-sm">
-                                        Whitelist
-                                    </button>
-                                    <button v-if="activeTab === 'whitelist'" @click="removeFromWhitelist(user.login)"
-                                        class="text-red-600 hover:text-red-900 text-sm">
-                                        Remove
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    </td>
+                                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap space-x-1 sm:space-x-2">
+                                        <button v-if="activeTab !== 'whitelist' && !isWhitelisted(item.data.login)"
+                                            @click="handleUnfollow(item.data.login)"
+                                            class="text-red-600 hover:text-red-900 text-sm">
+                                            Unfollow
+                                        </button>
+                                        <button v-if="activeTab !== 'whitelist' && !isWhitelisted(item.data.login)"
+                                            @click="addToWhitelist(item.data.login)"
+                                            class="text-green-600 hover:text-green-900 text-sm">
+                                            Whitelist
+                                        </button>
+                                        <button v-if="activeTab === 'whitelist'"
+                                            @click="removeFromWhitelist(item.data.login)"
+                                            class="text-red-600 hover:text-red-900 text-sm">
+                                            Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Pagination Controls -->
