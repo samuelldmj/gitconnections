@@ -78,6 +78,23 @@ export const useAuthStore = defineStore('auth', {
         },
 
 
+        async getRateLimit() {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/rate-limit`, {
+                    headers: { Authorization: `Bearer ${this.token}` },
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`);
+                }
+                return response.json();
+            } catch (error) {
+                console.error('Error fetching rate limit:', error);
+                throw error;
+            }
+        },
+
+
         async getUserStars() {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/user-stars`, {
                 headers: { Authorization: `Bearer ${this.token}` }
@@ -99,7 +116,7 @@ export const useAuthStore = defineStore('auth', {
                 }
 
                 const data = await response.json();
-                console.log('Followers data:', data.map(user => user.login));
+
                 this.pagination.followers.page = page;
                 this.pagination.followers.hasMore = data.length === perPage;
                 this.cache.followers = data;
@@ -124,7 +141,7 @@ export const useAuthStore = defineStore('auth', {
                     throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`);
                 }
                 const data = await response.json();
-                console.log('Non-followers data:', data.map(user => user.login));
+
                 this.pagination.nonFollowers.page = page;
                 this.pagination.nonFollowers.hasMore = data.length === perPage;
                 this.cache.nonFollowers = data;
