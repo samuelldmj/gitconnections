@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/theme';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { useVirtualList } from '@vueuse/core';
+import { debounce } from 'lodash';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -41,19 +42,19 @@ const currentUsers = computed(() => {
 });
 
 // Virtual scroll setup (kept for future debugging)
-const containerRef = ref(null);
-const { list: virtualList, containerProps, wrapperProps } = useVirtualList(currentUsers, {
-    itemHeight: 72,
-    overscan: 10,
-});
-watchEffect(() => {
-    console.log('currentUsers:', currentUsers.value);
-    console.log('virtualList:', virtualList.value);
-    console.log('containerRef:', containerRef.value?.getBoundingClientRect());
-    if (virtualList.value.length > 0) {
-        console.log('virtualList first item:', virtualList.value[0]);
-    }
-});
+// const containerRef = ref(null);
+// const { list: virtualList, containerProps, wrapperProps } = useVirtualList(currentUsers, {
+//     itemHeight: 72,
+//     overscan: 10,
+// });
+// watchEffect(() => {
+//     console.log('currentUsers:', currentUsers.value);
+//     console.log('virtualList:', virtualList.value);
+//     console.log('containerRef:', containerRef.value?.getBoundingClientRect());
+//     if (virtualList.value.length > 0) {
+//         console.log('virtualList first item:', virtualList.value[0]);
+//     }
+// });
 
 const bodyClasses = computed(() =>
     themeStore.isDarkMode ? 'dark bg-gray-900' : 'bg-gray-100'
@@ -94,8 +95,8 @@ const selectAllUsers = () => {
     users.forEach(user => selectedUsers.value.add(user.login));
 };
 
-// Pagination controls
-const loadPage = async (page) => {
+// Pagination controls with debouncing
+const loadPage = debounce(async (page) => {
     try {
         isLoadingMore.value = true;
         error.value = null;
@@ -121,7 +122,7 @@ const loadPage = async (page) => {
     } finally {
         isLoadingMore.value = false;
     }
-};
+}, 300);
 
 // Data fetching
 onMounted(async () => {
