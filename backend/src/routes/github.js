@@ -1,5 +1,5 @@
 import express from 'express';
-import axios from 'axios';
+import axios from 'axios'; // Import axios directly since it's used throughout
 const router = express.Router();
 import NodeCache from 'node-cache';
 
@@ -17,6 +17,26 @@ async function fetchWithCache(cacheKey, fetchFn) {
     return freshData;
 }
 
+// Rate Limit Monitoring Endpoint
+router.get('/rate-limit', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) return res.status(401).json({ error: 'No token provided' });
+
+        const { data } = await axios.get('https://api.github.com/rate_limit', {
+            headers: { Authorization: `token ${token}` }
+        });
+
+        res.json(data.rate);
+    } catch (error) {
+        console.error('Error fetching rate limit:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json({
+            error: error.message,
+            details: error.response?.data
+        });
+    }
+});
+
 // GitHub OAuth endpoints
 router.post('/github', async (req, res) => {
     try {
@@ -32,25 +52,25 @@ router.post('/github', async (req, res) => {
             },
             {
                 headers: { Accept: 'application/json' },
-                timeout: 5000,
+                timeout: 5000
             }
         );
 
         if (data.error) {
             return res.status(400).json({
-                error: data.error_description || 'GitHub authentication failed',
+                error: data.error_description || 'GitHub authentication failed'
             });
         }
 
         res.json({
             token: data.access_token,
-            expires_in: data.expires_in || 3600,
+            expires_in: data.expires_in || 3600
         });
     } catch (error) {
         console.error('Auth error:', error);
         res.status(500).json({
             error: error.message,
-            retryable: true,
+            retryable: true
         });
     }
 });
@@ -62,10 +82,11 @@ router.get('/user', async (req, res) => {
         const cacheKey = `user_${token}`;
 
         const data = await fetchWithCache(cacheKey, async () => {
-            const { data } = await axios.get('https://api.github.com/user', {
-                headers: { Authorization: `token ${token}` },
+            const response = await axios.get('https://api.github.com/user', {
+                headers: { Authorization: `token ${token}` }
             });
-            return data;
+
+            return response.data;
         });
 
         res.json(data);
@@ -88,9 +109,8 @@ router.get('/followers', async (req, res) => {
         const data = await fetchWithCache(cacheKey, async () => {
             const response = await axios.get('https://api.github.com/user/followers', {
                 headers: { Authorization: `token ${token}` },
-                params: { page, per_page },
+                params: { page, per_page }
             });
-            console.log('GitHub followers response:', response.data.map(user => user.login));
             return response.data;
         });
 
@@ -99,7 +119,7 @@ router.get('/followers', async (req, res) => {
         console.error('Error fetching followers:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
             error: error.message,
-            details: error.response?.data,
+            details: error.response?.data
         });
     }
 });
@@ -120,28 +140,24 @@ router.get('/non-followers', async (req, res) => {
                 const [followersRes, followingRes] = await Promise.all([
                     axios.get('https://api.github.com/user/followers', {
                         headers: { Authorization: `token ${token}` },
-                        params: { page, per_page: 100 },
+                        params: { page, per_page: 100 }
                     }),
                     axios.get('https://api.github.com/user/following', {
                         headers: { Authorization: `token ${token}` },
-                        params: { page, per_page: 100 },
-                    }),
+                        params: { page, per_page: 100 }
+                    })
                 ]);
                 followers = followers.concat(followersRes.data);
                 following = following.concat(followingRes.data);
-                console.log(`Page ${page} - Followers: ${followersRes.data.length}, Following: ${followingRes.data.length}`);
-                console.log('Followers logins:', followersRes.data.map(user => user.login));
-                console.log('Following logins:', followingRes.data.map(user => user.login));
+
                 if (followersRes.data.length < 100 && followingRes.data.length < 100) break;
                 page++;
-                await new Promise(resolve => setTimeout(resolve, 500)); // Respecting rate limits
+                await new Promise(resolve => setTimeout(resolve, 500)); // Respect rate limits
             }
-            console.log('Total followers:', followers.length, 'Total following:', following.length);
-            console.log('Followers logins:', followers.map(user => user.login));
-            console.log('Following logins:', following.map(user => user.login));
+
             const followerLogins = new Set(followers.map(user => user.login));
             const nonFollowers = following.filter(user => !followerLogins.has(user.login));
-            console.log('Non-followers:', nonFollowers.map(user => user.login));
+
             return nonFollowers;
         });
 
@@ -150,7 +166,7 @@ router.get('/non-followers', async (req, res) => {
         console.error('Error fetching non-followers:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
             error: error.message,
-            details: error.response?.data,
+            details: error.response?.data
         });
     }
 });
@@ -159,17 +175,18 @@ router.get('/non-followers', async (req, res) => {
 router.delete('/following/:username', async (req, res) => {
     try {
         const token = req.headers.authorization?.split(' ')[1] || req.session.githubToken;
-        await axios.delete(
+        const response = await axios.delete(
             `https://api.github.com/user/following/${req.params.username}`,
             { headers: { Authorization: `token ${token}` } }
         );
+
         cache.flushAll(); // Clear cache to ensure fresh data after unfollow
         res.json({ success: true });
     } catch (error) {
         console.error('Error unfollowing:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
             error: error.message,
-            details: error.response?.data,
+            details: error.response?.data
         });
     }
 });
@@ -183,10 +200,11 @@ router.post('/unfollow-batch', async (req, res) => {
 
         for (const username of usernames) {
             try {
-                await axios.delete(
+                const response = await axios.delete(
                     `https://api.github.com/user/following/${username}`,
                     { headers: { Authorization: `token ${token}` } }
                 );
+
                 results.push({ username, success: true });
                 await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit
             } catch (error) {
@@ -200,7 +218,7 @@ router.post('/unfollow-batch', async (req, res) => {
         console.error('Error in batch unfollow:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
             error: error.message,
-            details: error.response?.data,
+            details: error.response?.data
         });
     }
 });
@@ -213,14 +231,14 @@ router.get('/user-stars', async (req, res) => {
         let hasMore = true;
 
         while (hasMore) {
-            const { data } = await axios.get(`https://api.github.com/user/repos?per_page=100&page=${page}`, {
-                headers: { Authorization: `token ${token}` },
+            const response = await axios.get(`https://api.github.com/user/repos?per_page=100&page=${page}`, {
+                headers: { Authorization: `token ${token}` }
             });
 
-            if (data.length === 0) {
+            if (response.data.length === 0) {
                 hasMore = false;
             } else {
-                stars += data.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+                stars += response.data.reduce((sum, repo) => sum + repo.stargazers_count, 0);
                 page++;
                 await new Promise(resolve => setTimeout(resolve, 500)); // Respect rate limits
             }
@@ -231,7 +249,7 @@ router.get('/user-stars', async (req, res) => {
         console.error('Error fetching user stars:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json({
             error: error.message,
-            details: error.response?.data,
+            details: error.response?.data
         });
     }
 });
