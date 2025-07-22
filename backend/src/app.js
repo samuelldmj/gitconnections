@@ -31,13 +31,13 @@ const apiLimiter = rateLimit({
 
 // Middleware
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 }));
 app.use(morgan('dev'));
 app.use(express.json());
 
-//rate limiting to API routes
+// Rate limiting to API routes
 app.use('/api', apiLimiter);
 
 // Routes
