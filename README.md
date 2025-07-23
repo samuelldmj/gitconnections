@@ -201,4 +201,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Demo
 
-Watch a demo of the GitHub Dashboard Application: [Demo Link](/public/video/)
+Watch a demo of the GitHub Dashboard Application: [Demo Link](/frontend/public/video/gitConnectionVid.mp4)
