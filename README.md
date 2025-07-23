@@ -1,118 +1,204 @@
-GitHub Dashboard Application
-Welcome to the GitHub Dashboard Application! This project provides a web-based interface to manage your GitHub followers, non-followers, and unfollow actions, with authentication via GitHub OAuth. Built with a modern stack, it offers a user-friendly dashboard to track your GitHub activity.
-Table of Contents
+# GitHub Dashboard Application (GitConnections)
 
-Features
-Prerequisites
-Installation
-Usage
-Configuration
-API Endpoints
-Development
-Deployment
-Contributing
-License
+Welcome to the **GitHub Dashboard Application (GitConnections)**!  
+This project provides a web-based interface for managing your GitHub followers, non-followers, and unfollow actions, with secure authentication via GitHub OAuth. Built with a modern tech stack, it offers a user-friendly dashboard to track and manage your GitHub activity efficiently.
 
-Features
+---
 
-GitHub OAuth authentication for secure login.
-Dashboard to view followers, non-followers, and whitelisted users.
-Batch unfollow functionality with progress tracking.
-Virtual scrolling for efficient list rendering.
-Theme toggle between light and dark modes.
-Rate limit monitoring for GitHub API usage.
-Persistent whitelist and user data storage.
+## Table of Contents
 
-Prerequisites
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [API Endpoints](#api-endpoints)
+- [Development](#development)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
+- [Demo](#demo)
 
-Node.js (v18.x or later)
-npm (v8.x or later)
-Git
-A GitHub account with OAuth app credentials
-MongoDB (optional, for local testing; Atlas recommended for production)
+---
 
-Installation
+## Features
 
-Clone the repository:git clone https://github.com/your-username/your-repo.git
-cd your-repo
+- **GitHub OAuth Authentication:** Secure login using GitHub credentials.
+- **Interactive Dashboard:** View followers, non-followers, and whitelisted users.
+- **Batch Unfollow:** Unfollow multiple users with progress tracking.
+- **Virtual Scrolling:** Efficient rendering of large user lists.
+- **Theme Toggle:** Switch between light and dark modes.
+- **Rate Limit Monitoring:** Track GitHub API usage to avoid rate limits.
+- **Persistent Data Storage:** Save whitelist and user data for seamless usage.
 
-Install dependencies:
-For the frontend:cd frontend
-npm install
+---
 
-For the backend:cd backend
-npm install
+## Prerequisites
 
-Set up environment variables (see Configuration).
+- **Node.js:** Version 18.x or later
+- **npm:** Version 8.x or later
+- **Git:** For cloning the repository
+- **GitHub Account:** With OAuth app credentials
 
-Usage
+---
 
-Start the backend server:cd backend
-npm start
+## Installation
 
-The server will run on http://localhost:3000 by default.
-Start the frontend development server:cd frontend
-npm run dev
+1. **Clone the Repository:**
 
-Open http://localhost:5173 in your browser to access the app.
-Log in using your GitHub account via the OAuth flow.
+   ```bash
+   git clone https://github.com/samuelldmj/gitconnections.git
+   cd gitconnections
+   ```
 
-Configuration
-Create a .env.local file in the backend directory with the following variables:
+2. **Install Frontend Dependencies:**
+
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+3. **Install Backend Dependencies:**
+
+   ```bash
+   cd ../backend
+   npm install
+   ```
+
+4. **Set Up Environment Variables:**  
+   See the [Configuration](#configuration) section.
+
+---
+
+## Usage
+
+1. **Start the Backend Server:**
+
+   ```bash
+   cd backend
+   npm start
+   ```
+
+   The server runs on [http://localhost:3000](http://localhost:3000) by default.
+
+2. **Start the Frontend Development Server:**
+
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+   Open [http://localhost:5173](http://localhost:5173) in your browser to access the app.
+
+3. **Log In:**  
+   Use your GitHub account via the OAuth flow to log in.
+
+---
+
+## Configuration
+
+Create a `.env.local` file in the `backend` directory with the following variables:
+
+```env
 VITE_API_URL=http://localhost:3000
 GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
 SESSION_SECRET=your-secure-session-secret
 PORT=3000
+```
 
-Obtain GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET by creating an OAuth app in your GitHub settings.
-SESSION_SECRET should be a random string for session security.
+- **GITHUB_CLIENT_ID** and **GITHUB_CLIENT_SECRET**: Obtain these by creating an OAuth app in your GitHub settings.
+- **SESSION_SECRET**: Use a random, secure string for session security.
 
-API Endpoints
+## API Endpoints
 
-POST /api/auth/github - Authenticate with GitHub OAuth code.
-GET /api/auth/user - Fetch authenticated user profile.
-GET /api/auth/followers - Retrieve followers list.
-GET /api/auth/non-followers - Get users you follow who don’t follow back.
-DELETE /api/auth/following/:username - Unfollow a single user.
-POST /api/auth/unfollow-batch - Unfollow multiple users.
-GET /api/auth/rate-limit - Check GitHub API rate limit.
-GET /api/auth/user-stars - Fetch total stars on user repositories.
+| Method   | Endpoint                        | Description                                      |
+| -------- | ------------------------------- | ------------------------------------------------ |
+| `POST`   | `/api/auth/github`              | Authenticate using a GitHub OAuth code           |
+| `GET`    | `/api/auth/user`                | Fetch the authenticated user's profile           |
+| `GET`    | `/api/auth/followers`           | Retrieve the list of followers                   |
+| `GET`    | `/api/auth/non-followers`       | Get users you follow who don't follow you back   |
+| `DELETE` | `/api/auth/following/:username` | Unfollow a single user                           |
+| `POST`   | `/api/auth/unfollow-batch`      | Unfollow multiple users in a batch               |
+| `GET`    | `/api/auth/rate-limit`          | Check the GitHub API rate limit status           |
+| `GET`    | `/api/auth/user-stars`          | Fetch the total stars on the user's repositories |
 
-Development
+## Development
 
-Run the app in development mode with hot reloading:cd frontend
+### Run in Development Mode
+
+#### Frontend with hot reloading:
+
+```bash
+cd frontend
 npm run dev
-cd ../backend
-npm run dev
+```
 
-Lint and format code:npm run lint
+#### Backend with hot reloading:
+
+```bash
+cd backend
+npm run dev
+```
+
+Lint and Format Code:
+
+```bash
+npm run lint
 npm run format
+```
 
-Test changes locally before committing.
+### Test Locally
 
-Deployment
-This project can be deployed to Vercel for free:
+Verify changes before committing.
 
-Install the Vercel CLI:npm install -g vercel
+## Deployment
 
-Log in and deploy:vercel
+Deploy the application to Vercel for free:
 
-Configure vercel.json for routing (see repository root).
-Set environment variables in the Vercel dashboard.
+Install Vercel CLI:
 
-Contributing
+```bash
+npm install -g vercel
+```
 
-Fork the repository.
-Create a feature branch (git checkout -b feature-name).
-Commit your changes (git commit -m "Add feature").
-Push to the branch (git push origin feature-name).
-Open a pull request.
+Log In and Deploy:
 
-License
+```bash
+vercel
+```
+
+### Configure Routing
+
+Add a `vercel.json` file in the repository root (see repository for details).
+
+### Set Environment Variables
+
+Configure variables in the Vercel dashboard.
+
+## Contributing
+
+We welcome contributions! Follow these steps:
+
+1. Fork the repository.
+2. Create a feature branch:
+   ```bash
+   git checkout -b feature-name
+   ```
+3. Commit your changes:
+   ```bash
+   git commit -m "Add feature"
+   ```
+4. Push to the branch:
+   ```bash
+   git push origin feature-name
+   ```
+5. Open a pull request.
+
+## License
+
 This project is licensed under the MIT License. See the LICENSE file for details.
 
-<video controls width="500">
-  <source src="../GitConnections/frontend/public/video/gitConnectionVid.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+## Demo
+
+Watch a demo of the GitHub Dashboard Application: [Demo Link](#)
