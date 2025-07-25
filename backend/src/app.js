@@ -37,8 +37,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Handle preflight requests
-app.options('*', cors());
+
 
 // Trust proxy for Vercel
 if (process.env.NODE_ENV === 'production') {
