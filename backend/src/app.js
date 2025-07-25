@@ -31,9 +31,16 @@ const apiLimiter = rateLimit({
 
 // Middleware
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: process.env.NODE_ENV === 'production' 
+        ? process.env.FRONTEND_URL 
+        : 'http://localhost:5173',
     credentials: true
 }));
+
+// Trust proxy for Vercel
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
 app.use(morgan('dev'));
 app.use(express.json());
 

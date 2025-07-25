@@ -6,10 +6,10 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+      '@': path.resolve(__dirname, './src'),
+    },
   },
-  base: process.env.NODE_ENV === 'production' ? '/gitconnections/' : '/',
+  base: '/',
   server: {
     proxy: {
       '/api': {
@@ -22,16 +22,18 @@ export default defineConfig({
       port: 4173,
       strictPort: true,
       headers: {
-        "Cache-Control": "no-store"
-      }
-    }
+        'Cache-Control': 'no-store',
+      },
+    },
   },
   build: {
-    assetsDir: './',
+    assetsDir: 'assets',
     rollupOptions: {
       output: {
-        assetFileNames: '[name].[ext]'
-      }
-    }
-  }
+        assetFileNames: 'assets/[name].[ext]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
+    },
+  },
 });
