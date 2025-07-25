@@ -29,9 +29,9 @@ const apiLimiter = rateLimit({
     message: 'Too many requests, please try again later'
 });
 
-// Middleware
+// CORS configuration for separate deployment
 app.use(cors({
-    origin: true,
+    origin: process.env.FRONTEND_URL || true,
     credentials: true,
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
