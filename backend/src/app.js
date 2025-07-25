@@ -31,23 +31,7 @@ const apiLimiter = rateLimit({
 
 // Middleware
 app.use(cors({
-    origin: (origin, callback) => {
-        const allowedOrigins = [
-            process.env.FRONTEND_URL,
-            'http://localhost:5173'
-        ];
-        
-        // Allow Vercel deployments
-        if (origin && origin.includes('gitconnections-frontend') && origin.includes('vercel.app')) {
-            return callback(null, true);
-        }
-        
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
